@@ -1,0 +1,18 @@
+name: abaplint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  abaplint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch the SAP standard stubs abaplint checks against
+        run: git clone --depth 1 https://github.com/abaplint/deps deps
+      - name: abaplint
+        run: npx --yes @abaplint/cli@2.120.59 abaplint.json

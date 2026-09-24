@@ -1,0 +1,17 @@
+{
+  "formatVersion": "1",
+  "header": {
+    "description": "SQL reporting",
+    "originalLanguage": "en"
+  },
+  "subobjects": [
+    {
+      "name": "GRANT",
+      "description": "Changes to who may read which tables"
+    },
+    {
+      "name": "RUN",
+      "description": "run"
+    }
+  ]
+}
