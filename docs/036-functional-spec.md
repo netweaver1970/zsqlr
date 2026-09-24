@@ -134,7 +134,7 @@ not the scheduler's.
 ### 3.6 Know what happened
 
 Every run is recorded in the application log (`SLG1`, object `ZSQLR`, subobject
-`RUN`): who, when, which query, the statement as it was executed, how many rows,
+`RUN`): who, when, which query, the statement as typed, how many rows,
 which destination and target, whether it was current-client or cross-client,
 and — on a refusal or failure — why. Refusals are logged too, and they are the
 half that matters: a statement naming a payroll table is worth knowing about

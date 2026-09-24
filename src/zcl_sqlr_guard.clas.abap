@@ -50,6 +50,18 @@ CLASS zcl_sqlr_guard DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING iv_sql           TYPE string
       RETURNING VALUE(rs_result) TYPE ty_result.
 
+    "! The statement as the database is to receive it: comments removed,
+    "! everything else as typed. ADBC's placeholder parser does not know SQL
+    "! comments and counts every quote mark, so one apostrophe in a comment
+    "! read as an unclosed literal and the statement failed. Literals and
+    "! quoted names pass through untouched -- a -- inside quotes is data. A
+    "! block comment becomes one space, so the words either side stay apart,
+    "! as the guard reads them. Run after check( ), which has already refused
+    "! an unclosed literal or comment; given one, the rest is kept as it is.
+    CLASS-METHODS without_comments
+      IMPORTING iv_sql        TYPE string
+      RETURNING VALUE(rv_sql) TYPE string.
+
   PRIVATE SECTION.
 
     CONSTANTS c_word_start TYPE string
@@ -230,6 +242,75 @@ CLASS zcl_sqlr_guard IMPLEMENTATION.
     ENDIF.
 
     rs_result-ok = abap_true.
+
+  ENDMETHOD.
+
+
+  METHOD without_comments.
+
+    DATA(lv_len) = strlen( iv_sql ).
+    DATA(lv_lf)  = cl_abap_char_utilities=>newline.
+    DATA(lv_cr)  = cl_abap_char_utilities=>cr_lf(1).
+    DATA lv_i    TYPE i VALUE 0.
+    DATA lv_from TYPE i VALUE 0.
+
+    " Copied a stretch at a time: from lv_from up to the start of whatever
+    " is dropped, then on past it.
+    WHILE lv_i < lv_len.
+      DATA(lv_c) = iv_sql+lv_i(1).
+
+      " A literal or a quoted name, doubled quotes and all, stays as it is.
+      IF lv_c = `'` OR lv_c = `"`.
+        DATA(lv_quote) = lv_c.
+        lv_i = lv_i + 1.
+        WHILE lv_i < lv_len.
+          IF iv_sql+lv_i(1) = lv_quote.
+            IF lv_i + 2 <= lv_len AND iv_sql+lv_i(1) = lv_quote AND iv_sql+lv_i(2) = |{ lv_quote }{ lv_quote }|.
+              lv_i = lv_i + 2.
+              CONTINUE.
+            ENDIF.
+            lv_i = lv_i + 1.
+            EXIT.
+          ENDIF.
+          lv_i = lv_i + 1.
+        ENDWHILE.
+        CONTINUE.
+      ENDIF.
+
+      " A line comment goes; the line break that ends it stays.
+      IF lv_c = '-' AND lv_i + 2 <= lv_len AND iv_sql+lv_i(2) = '--'.
+        rv_sql = rv_sql && substring( val = iv_sql off = lv_from len = lv_i - lv_from ).
+        WHILE lv_i < lv_len AND iv_sql+lv_i(1) <> lv_lf AND iv_sql+lv_i(1) <> lv_cr.
+          lv_i = lv_i + 1.
+        ENDWHILE.
+        lv_from = lv_i.
+        CONTINUE.
+      ENDIF.
+
+      " A block comment, nested ones counted, becomes one space.
+      IF lv_c = '/' AND lv_i + 2 <= lv_len AND iv_sql+lv_i(2) = '/*'.
+        rv_sql = rv_sql && substring( val = iv_sql off = lv_from len = lv_i - lv_from ) && ` `.
+        DATA(lv_nest) = 1.
+        lv_i = lv_i + 2.
+        WHILE lv_i < lv_len AND lv_nest > 0.
+          IF lv_i + 2 <= lv_len AND iv_sql+lv_i(2) = '/*'.
+            lv_nest = lv_nest + 1.
+            lv_i = lv_i + 2.
+          ELSEIF lv_i + 2 <= lv_len AND iv_sql+lv_i(2) = '*/'.
+            lv_nest = lv_nest - 1.
+            lv_i = lv_i + 2.
+          ELSE.
+            lv_i = lv_i + 1.
+          ENDIF.
+        ENDWHILE.
+        lv_from = lv_i.
+        CONTINUE.
+      ENDIF.
+
+      lv_i = lv_i + 1.
+    ENDWHILE.
+
+    rv_sql = rv_sql && substring( val = iv_sql off = lv_from len = lv_len - lv_from ).
 
   ENDMETHOD.
 
@@ -600,7 +681,6 @@ CLASS zcl_sqlr_guard IMPLEMENTATION.
             es_diag-fix  = 'Rewrite that part of the FROM clause. A guard that guesses is not a guard, so this one refuses.'.
             rv_ok = abap_false.
             RETURN.
-
           ENDIF.
 
         ELSEIF ls_n-depth = lv_depth AND ls_n-kind = 'P' AND ls_n-value = ','.

@@ -59,6 +59,12 @@ CLASS ltcl_guard DEFINITION FINAL FOR TESTING
     METHODS mixed_case_drop            FOR TESTING.
     METHODS source_after_join_and_on   FOR TESTING.
 
+    " What reaches the database: comments gone, literals kept.
+    METHODS strip_line_comment         FOR TESTING.
+    METHODS strip_keeps_dashes_in_text FOR TESTING.
+    METHODS strip_nested_block         FOR TESTING.
+    METHODS strip_keeps_quoted_name    FOR TESTING.
+
 ENDCLASS.
 
 
@@ -322,6 +328,36 @@ CLASS ltcl_guard IMPLEMENTATION.
     cl_abap_unit_assert=>assert_true( act = ls-ok msg = 'comma source after an ON clause' ).
     READ TABLE ls-sources TRANSPORTING NO FIELDS WITH KEY name = `MARD`.
     cl_abap_unit_assert=>assert_subrc( exp = 0 msg = 'the source after the ON clause was seen' ).
+  ENDMETHOD.
+
+  METHOD strip_line_comment.
+    " The case that broke ADBC: an apostrophe in a comment.
+    DATA(lv) = zcl_sqlr_guard=>without_comments(
+      |SELECT matnr -- the item's material\nFROM mara| ).
+    cl_abap_unit_assert=>assert_equals( exp = |SELECT matnr \nFROM mara| act = lv
+                                        msg = 'a line comment is dropped, its line break kept' ).
+  ENDMETHOD.
+
+  METHOD strip_keeps_dashes_in_text.
+    DATA(lv) = zcl_sqlr_guard=>without_comments(
+      `SELECT * FROM mara WHERE matnr = 'A--B' AND mtart = 'X''Y' -- gone` ).
+    cl_abap_unit_assert=>assert_equals(
+      exp = `SELECT * FROM mara WHERE matnr = 'A--B' AND mtart = 'X''Y' `
+      act = lv msg = 'dashes and a doubled quote inside a literal are data' ).
+  ENDMETHOD.
+
+  METHOD strip_nested_block.
+    DATA(lv) = zcl_sqlr_guard=>without_comments(
+      `SELECT /* outer /* inner */ still outer */ matnr FROM mara` ).
+    cl_abap_unit_assert=>assert_equals( exp = `SELECT   matnr FROM mara` act = lv
+                                        msg = 'a nested block comment goes whole, as one space' ).
+  ENDMETHOD.
+
+  METHOD strip_keeps_quoted_name.
+    DATA(lv) = zcl_sqlr_guard=>without_comments(
+      `SELECT "A--B" FROM mara /* x */` ).
+    cl_abap_unit_assert=>assert_equals( exp = `SELECT "A--B" FROM mara  ` act = lv
+                                        msg = 'a quoted name is kept as typed' ).
   ENDMETHOD.
 
 ENDCLASS.

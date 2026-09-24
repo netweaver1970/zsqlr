@@ -169,11 +169,10 @@ It reads `DUMMY`, HANA's one-row table, so put `DUMMY` on the list for everybody
 ranks below the joins after it, and `v` would not be visible in their `ON`
 conditions.
 
-**No apostrophes in comments.** The statement reaches the database driver with
-its `--` comments, and ADBC's placeholder parser counts every quote mark in the
-text, comments included. One apostrophe — `-- the item's plant` — reads as an
-unclosed literal and the statement fails with "the quotation marks … were not
-closed". Write `-- the plant of the item`.
+**Comment freely.** Comments are removed before the statement goes to the
+database — ADBC's placeholder parser would otherwise read an apostrophe in a
+comment as an unclosed literal — and the run log keeps the statement as you
+typed it, comments included.
 
 ## Documentation
 

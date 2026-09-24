@@ -70,12 +70,14 @@ field with `'10'`, matches nothing, silently; the author pads with `LPAD`. Open
 SQL would have compared them as numbers, which is exactly the kind of help a
 native-SQL tool cannot give without rewriting what the author wrote.
 
-And the statement reaches ADBC with its comments. ADBC's placeholder parser does
-not know `--` comments and counts every quote mark in the text, so an apostrophe
-in a comment reads as an unclosed literal and the statement fails before the
-database sees it. The guard strips comments to read a statement; whether the
-tool should also send it stripped is an open question — it would change what the
-log keeps as "the statement as sent".
+The statement reaches ADBC **without its comments**.
+ADBC's placeholder parser does not know `--` comments and counts every quote
+mark in the text, so an apostrophe in a comment read as an unclosed literal and
+the statement failed before the database saw it. `ZCL_SQLR_GUARD=>WITHOUT_COMMENTS`
+removes line and block comments by the guard's own rules, after the check and the
+client rewrite: literals and quoted names pass through untouched, so a `--`
+inside quotes is data, and a block comment becomes one space so the words either
+side stay apart. The log keeps the statement **as typed**, comments and all.
 
 Nothing reads the whole result into memory unless the destination needs it
 (§6). A CSV of forty million rows is a loop over packages and a `TRANSFER`; the
@@ -189,8 +191,8 @@ JOIN marc ON …    →   JOIN (SELECT * FROM marc WHERE mandt = '100') AS marc 
 The restriction travels with the table wherever it is used, whatever the outer
 `WHERE` does, including in subqueries and `UNION` branches. An unaliased source
 is given its own name back as the alias, so every column reference still
-resolves. The client is `sy-mandt`. The log keeps the rewritten statement,
-because that is what ran.
+resolves. The client is `sy-mandt`. The log keeps the statement as typed; what
+ran follows from it, the client and the client mode, all three logged.
 
 ### 4.3 Cross-client
 
@@ -202,7 +204,7 @@ anything reaches the database.
 
 It is said everywhere the answer goes: the grid header starts *Every client*,
 the mail body says the run was across every client rather than naming one, and
-the log records `Read every client` with the statement as sent — unrewritten.
+the log records `Read every client` beside the statement.
 `ZCL_SQLR_OUT=>DELIVER` takes an every-client flag and repeats the
 authorisation check itself before delivering a file or a mail, because it
 receives the statement already built and cannot tell a rewritten one from one

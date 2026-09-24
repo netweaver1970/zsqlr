@@ -1114,10 +1114,17 @@ CLASS lcl_app IMPLEMENTATION.
                                                     it_sources = ls_guard-sources ).
     ENDIF.
 
-    " What the log keeps is the statement as it was **sent** -- after the
-    " client rewrite, not as it was typed. What ran is what an auditor
-    " needs; what was typed is a different and less useful question.
-    gs_run-statement = ev_sql.
+    " The database gets it without comments: ADBC's placeholder parser
+    " counts every quote mark, comments included, and one apostrophe in a
+    " comment failed the statement as an unclosed literal.
+    ev_sql = zcl_sqlr_guard=>without_comments( ev_sql ).
+
+    " The log keeps the statement as typed, comments and all -- decided 24
+    " Sept 2026, reversing "as sent". What was sent follows from it: the
+    " rewrite is fixed by the typed text, the client and the client mode,
+    " all three of which the log records, and the comments are what says
+    " why a statement is written the way it is.
+    gs_run-statement = lv_sql.
 
     rv_ok = abap_true.
 

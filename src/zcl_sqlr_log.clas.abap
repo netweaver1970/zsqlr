@@ -199,11 +199,11 @@ CLASS zcl_sqlr_log IMPLEMENTATION.
                                 THEN `Read every client`
                                 ELSE |Read client { sy-mandt } only| ) ).
 
-    " --- and the statement, as it was sent ----------------------------
+    " --- and the statement, as typed ---------------------------------
 
     IF is_run-statement IS NOT INITIAL.
       add( iv_handle = lv_handle iv_type = 'I' iv_level = '2'
-           iv_text = `The statement, as it was sent:` ).
+           iv_text = `The statement, as typed:` ).
 
       SPLIT is_run-statement AT cl_abap_char_utilities=>newline INTO TABLE DATA(lt_lines).
       LOOP AT lt_lines INTO DATA(lv_line).
