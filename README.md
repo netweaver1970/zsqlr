@@ -147,6 +147,28 @@ field holds `'0000000010'`, not `'10'`. Pad the shorter side, e.g.
 `n.docitm = LPAD(p.ebelp, 6, '0')`. Open SQL hides this; here it shows up as a
 join that quietly returns nothing.
 
+**Keep the values a query filters on at the top.** Native SQL has no parameters
+here, but a one-row common table expression does the job, and a saved query
+then reads like a form:
+
+```sql
+WITH v AS (
+  SELECT '1000' AS plant,        -- which plant
+         'ZOIL' AS material_type -- which material type
+    FROM dummy
+)
+SELECT m.matnr, m.mtart, c.werks
+  FROM v
+  CROSS JOIN mara m
+  JOIN marc c ON c.matnr = m.matnr AND c.werks = v.plant
+ WHERE m.mtart = v.material_type
+```
+
+It reads `DUMMY`, HANA's one-row table, so put `DUMMY` on the list for everybody
+(`*`) — it holds a single `X`. Join `v` with `CROSS JOIN`, not a comma: a comma
+ranks below the joins after it, and `v` would not be visible in their `ON`
+conditions.
+
 ## Documentation
 
 - [docs/036-functional-spec.md](docs/036-functional-spec.md) — what the tool
