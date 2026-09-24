@@ -261,7 +261,10 @@ about 680 pixels high:
 The share of the first container in a session is taken of the whole page; every
 container built after it — after a destination change, after coming back from a
 run — is a share of the area under the toolbar, some 90 pixels less. So the
-first container is scaled to 85 per cent of its share. A taller window leaves a
+first container is scaled to 85 per cent of its share. "First" means first on the page, not
+first in the program: after a run, Back restarts the report and resets its class
+attributes while the browser page stays, so the flag is kept in ABAP memory as
+well. A taller window leaves a
 band above the editor; none of these shares overlaps the fields at the size they
 were measured.
 
@@ -320,6 +323,21 @@ Guard → rewrite → prepare → execute → fetch. The grid is `CL_SALV_TABLE`
 dynamic table, with a layout key per saved query — without a layout key SALV
 hides the layout functions, and one key for every query would offer one query's
 columns to another. The row cap truncates and says so in the header.
+
+**Column widths come from the content** (`ZCL_SQLR_OUT=>FIT_COLUMNS`), not from
+`set_optimize( )`. SALV's optimiser measures in characters and SAP GUI for HTML
+draws digits wider than that, so in a browser document numbers and the ends of
+quantities were cut off. Each column is the widest value as the grid shows it —
+`WRITE` gives the thousands separator and the decimals — or its name if longer,
+plus two characters; the heading gets four, for the bold font and the sort
+arrow. The long heading is pinned with `set_fixed_header_text( 'L' )`: left to
+choose, the grid uses the ten-character short text on any column it considers
+narrow. Capped at 60, measured over the first 5,000 rows.
+
+**Wheel scrolling** in SAP GUI for HTML moves one row per wheel event, the
+smallest step there is; on a trackpad or a Magic Mouse, which send many events
+per swipe, that feels fast. Neither `CL_GUI_ALV_GRID` nor SALV has a setting for
+it — the operating system's scrolling speed is the control.
 
 ### 5.4 Saving
 

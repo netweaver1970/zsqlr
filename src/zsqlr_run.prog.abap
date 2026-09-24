@@ -253,7 +253,18 @@ CLASS lcl_app DEFINITION CREATE PRIVATE.
                c_share_gui_file TYPE i VALUE 73,
                c_share_gui_mail TYPE i VALUE 69.
 
+    " Kept in ABAP memory, not only in class data: after a run, Back
+    " restarts the report and resets every class attribute, but the page
+    " in the browser is not reloaded -- so the container built then is
+    " not the page's first and must not be scaled. A class attribute alone
+    " forgot that, and the editor came back two lines short after a run.
     CLASS-DATA gv_dock_built TYPE abap_bool.
+    CONSTANTS c_dock_memory TYPE c LENGTH 20 VALUE 'ZSQLR_DOCK_BUILT'.
+
+    "! Whether this page already holds a container: in this run of the
+    "! report, or in one before it that Back restarted.
+    CLASS-METHODS dock_built_before
+      RETURNING VALUE(rv_built) TYPE abap_bool.
     CLASS-DATA gv_share TYPE i.
 
     CLASS-METHODS statement
@@ -485,6 +496,17 @@ CLASS lcl_app IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD dock_built_before.
+
+    IF gv_dock_built = abap_true.
+      rv_built = abap_true.
+      RETURN.
+    ENDIF.
+    IMPORT built = rv_built FROM MEMORY ID c_dock_memory.
+
+  ENDMETHOD.
+
+
   METHOD build_screen.
 
     " A background job has a selection screen too -- it simply never draws
@@ -530,10 +552,11 @@ CLASS lcl_app IMPLEMENTATION.
 
     gv_share = lv_share.
     DATA(lv_ratio) = COND i(
-      WHEN lv_browser = abap_true AND gv_dock_built = abap_false
+      WHEN lv_browser = abap_true AND dock_built_before( ) = abap_false
       THEN lv_share * c_first_build_scale / 100
       ELSE lv_share ).
     gv_dock_built = abap_true.
+    EXPORT built = gv_dock_built TO MEMORY ID c_dock_memory.
 
     CREATE OBJECT go_dock
       EXPORTING
@@ -1707,9 +1730,12 @@ CLASS lcl_app IMPLEMENTATION.
         lo_alv->get_selections( )->set_selection_mode(
           if_salv_c_selection_mode=>row_column ).
 
+        " Widths from the content rather than set_optimize( ), which cut
+        " the ends off numbers in a browser. See ZCL_SQLR_OUT=>FIT_COLUMNS.
         DATA(lo_columns) = lo_alv->get_columns( ).
-        lo_columns->set_optimize( ).
         zcl_sqlr_out=>label_columns( lo_columns ).
+        zcl_sqlr_out=>fit_columns( io_columns = lo_columns
+                                   it_rows    = <lt_rows> ).
 
         DATA(lo_display) = lo_alv->get_display_settings( ).
         lo_display->set_striped_pattern( abap_true ).

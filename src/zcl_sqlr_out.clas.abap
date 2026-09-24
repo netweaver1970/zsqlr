@@ -80,6 +80,16 @@ CLASS zcl_sqlr_out DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS label_columns
       IMPORTING io_columns TYPE REF TO cl_salv_columns_table.
 
+    "! Each column as wide as what it holds. SALV's own optimiser measures
+    "! in characters and SAP GUI for HTML draws digits wider than that, so
+    "! in a browser the ends of numbers and document numbers were cut off.
+    "! This measures the widest value as the grid will show it -- WRITE
+    "! gives the user's thousands separator and the decimals -- or the
+    "! column name if that is longer, and adds a margin.
+    CLASS-METHODS fit_columns
+      IMPORTING io_columns TYPE REF TO cl_salv_columns_table
+                it_rows    TYPE STANDARD TABLE.
+
     CLASS-METHODS file_name
       IMPORTING iv_name        TYPE string OPTIONAL
                 iv_format      TYPE string DEFAULT c_csv
@@ -181,6 +191,50 @@ CLASS zcl_sqlr_out IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD fit_columns.
+
+    " Two characters of slack for the proportional fonts of SAP GUI for
+    " HTML and Java; a cap so one free-text column cannot push the rest
+    " off the screen; and a sample, because measuring a million rows to
+    " place the first screenful is not worth the wait. A value wider than
+    " anything in the first rows still shows -- the column can be widened.
+    "
+    " The heading gets more room than a value: it is drawn in bold, with
+    " space kept for the sort arrow, and at the value margin COMPANY showed
+    " as COMPA... in a browser.
+    CONSTANTS: c_margin      TYPE i VALUE 2,
+               c_head_margin TYPE i VALUE 4,
+               c_widest      TYPE i VALUE 60,
+               c_sample      TYPE i VALUE 5000.
+
+    DATA lv_text  TYPE c LENGTH 255.
+    DATA lt_width TYPE STANDARD TABLE OF i WITH EMPTY KEY.
+
+    DATA(lt_columns) = io_columns->get( ).
+    LOOP AT lt_columns INTO DATA(ls_column).
+      APPEND strlen( CONV string( ls_column-columnname ) ) + c_head_margin - c_margin TO lt_width.
+    ENDLOOP.
+
+    LOOP AT it_rows ASSIGNING FIELD-SYMBOL(<ls_row>) TO c_sample.
+      LOOP AT lt_width ASSIGNING FIELD-SYMBOL(<lv_width>).
+        DATA(lv_at) = sy-tabix.
+        ASSIGN COMPONENT lv_at OF STRUCTURE <ls_row> TO FIELD-SYMBOL(<lv_value>).
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+        WRITE <lv_value> TO lv_text LEFT-JUSTIFIED.
+        <lv_width> = nmax( val1 = <lv_width> val2 = strlen( lv_text ) ).
+      ENDLOOP.
+    ENDLOOP.
+
+    LOOP AT lt_columns INTO ls_column.
+      DATA(lv_width) = nmin( val1 = lt_width[ sy-tabix ] + c_margin val2 = c_widest ).
+      ls_column-r_column->set_output_length( CONV lvc_outlen( lv_width ) ).
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
   METHOD label_columns.
 
     LOOP AT io_columns->get( ) INTO DATA(ls_column).
@@ -189,6 +243,10 @@ CLASS zcl_sqlr_out IMPLEMENTATION.
       lo_column->set_short_text( CONV scrtext_s( lv_name ) ).
       lo_column->set_medium_text( CONV scrtext_m( lv_name ) ).
       lo_column->set_long_text( CONV scrtext_l( lv_name ) ).
+      " Always the long one. Left to choose, the grid picks the ten-
+      " character short text for any column narrower than it thinks a
+      " medium text needs, and ORDERED_QTY became ORDERED_QT.
+      lo_column->set_fixed_header_text( 'L' ).
     ENDLOOP.
 
   ENDMETHOD.
