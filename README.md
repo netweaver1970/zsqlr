@@ -140,6 +140,13 @@ Transaction `ZSQLR`. The application toolbar has **Run** (the same as F8),
 Native SQL reads the physical tables, not CDS views and not the compatibility
 views of S/4HANA: on S/4, goods movements are in `MATDOC`, not `MSEG`.
 
+And it compares `NUMC` fields as the character strings HANA stores them as, not
+as numbers. Two item numbers of different lengths never match — `'000010'`
+(NUMC 6) is not `'00010'` (NUMC 5) — and neither does a short literal: a NUMC 10
+field holds `'0000000010'`, not `'10'`. Pad the shorter side, e.g.
+`n.docitm = LPAD(p.ebelp, 6, '0')`. Open SQL hides this; here it shows up as a
+join that quietly returns nothing.
+
 ## Documentation
 
 - [docs/036-functional-spec.md](docs/036-functional-spec.md) — what the tool

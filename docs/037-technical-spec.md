@@ -63,6 +63,13 @@ the columns are not known until the statement is prepared.
    tool's own would only be a second answer free to disagree with SAP's.
 3. A table of that structure receives the rows, `next_package( )` at a time.
 
+What the tool deliberately does not do is translate. The statement reaches HANA
+as written, with HANA's semantics — including that a `NUMC` field is a character
+string there. Joining a NUMC 6 item to a NUMC 5 item, or comparing a NUMC 10
+field with `'10'`, matches nothing, silently; the author pads with `LPAD`. Open
+SQL would have compared them as numbers, which is exactly the kind of help a
+native-SQL tool cannot give without rewriting what the author wrote.
+
 Nothing reads the whole result into memory unless the destination needs it
 (§6). A CSV of forty million rows is a loop over packages and a `TRANSFER`; the
 program's memory does not grow with the answer.
