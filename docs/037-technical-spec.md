@@ -70,6 +70,13 @@ field with `'10'`, matches nothing, silently; the author pads with `LPAD`. Open
 SQL would have compared them as numbers, which is exactly the kind of help a
 native-SQL tool cannot give without rewriting what the author wrote.
 
+And the statement reaches ADBC with its comments. ADBC's placeholder parser does
+not know `--` comments and counts every quote mark in the text, so an apostrophe
+in a comment reads as an unclosed literal and the statement fails before the
+database sees it. The guard strips comments to read a statement; whether the
+tool should also send it stripped is an open question — it would change what the
+log keeps as "the statement as sent".
+
 Nothing reads the whole result into memory unless the destination needs it
 (§6). A CSV of forty million rows is a loop over packages and a `TRANSFER`; the
 program's memory does not grow with the answer.
