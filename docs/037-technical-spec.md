@@ -535,6 +535,10 @@ follow 2.2. The README lists them.
 
 ## 12. Known gaps
 
+- In the table-list grid in a browser, the cell still being typed in when Save
+  is pressed is usually picked up (5.5), but once, after three new rows typed
+  in one go, its value was lost. Click out of the last cell before Save when it
+  matters.
 - A background job asking for a grid or a local file is refused at run time, not
   when its variant is saved.
 - The highlighting language: `CL_GUI_SOURCEEDIT` highlights ABAP; whether a
